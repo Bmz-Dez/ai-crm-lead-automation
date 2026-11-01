@@ -1,0 +1,63 @@
+{
+  "name": "AI CRM Lead-Triage & HubSpot Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incoming-lead",
+        "responseMode": "onReceived"
+      },
+      "id": "node-webhook-trigger",
+      "name": "Incoming Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/leads/triage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "name", "value": "={{$json.body.name}}" },
+            { "name": "email", "value": "={{$json.body.email}}" },
+            { "name": "company", "value": "={{$json.body.company}}" },
+            { "name": "message", "value": "={{$json.body.message}}" }
+          ]
+        }
+      },
+      "id": "node-ai-triage",
+      "name": "FastAPI Groq Triage Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.triage.routing_action}}",
+        "rules": {
+          "rules": [
+            { "value2": "auto_sync_crm", "output": 0 },
+            { "value2": "human_escalation", "output": 1 },
+            { "value2": "discard_spam", "output": 2 }
+          ]
+        }
+      },
+      "id": "node-routing-gateway",
+      "name": "BPMN Routing Gateway",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [760, 300]
+    }
+  ],
+  "connections": {
+    "Incoming Lead Webhook": {
+      "main": [[{ "node": "FastAPI Groq Triage Agent", "type": "main", "index": 0 }]]
+    },
+    "FastAPI Groq Triage Agent": {
+      "main": [[{ "node": "BPMN Routing Gateway", "type": "main", "index": 0 }]]
+    }
+  }
+}
